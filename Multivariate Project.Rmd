@@ -1,0 +1,334 @@
+---
+title: "Multivariate Analysis Project"
+author: "Nishanth Girish"
+date: "2024-01-02"
+output: word_document
+---
+
+
+```{r}
+# Data
+library(httr)
+data.full <-read.csv("C:/Users/nisha/OneDrive/Documents/Multivariate/skulls.csv")
+
+#data.full <- data.full[,-1]
+
+data <- data.full[,2:5]
+data
+```
+
+
+
+```{r}
+# Mean vectors;
+
+# data stat summary #
+x_bar<- apply(data, 2, mean)  
+x_bar
+```
+
+
+```{r}
+# Covariance matrix
+cov.mat <- cov(data)
+cov.mat
+```
+
+
+```{r}
+skulls1 <- as.matrix(subset(data.full, data.full[,1]=="c4000BC")[,2:5])
+skulls2 <- as.matrix(subset(data.full, data.full[,1]=="c3300BC")[,2:5])
+skulls3 <- as.matrix(subset(data.full, data.full[,1]=="c1850BC")[,2:5])
+skulls4 <- as.matrix(subset(data.full, data.full[,1]=="c200BC")[,2:5])
+skulls5 <- as.matrix(subset(data.full, data.full[,1]=="cAD150")[,2:5])
+
+# group mean #
+x_bar_1 <- apply(skulls1, 2, mean)
+x_bar_2 <- apply(skulls2, 2, mean)
+x_bar_3 <- apply(skulls3, 2, mean)
+x_bar_4 <- apply(skulls4, 2, mean)
+x_bar_5 <- apply(skulls5, 2, mean)
+
+# Mean Vectors ( mean of each variable for each time period)
+cbind(x_bar_1, x_bar_2, x_bar_3, x_bar_4) 
+```
+```{r}
+# Correlation matrix
+
+corr.mat <- cor(data)
+corr.mat                          # None of the variables are highly correlated with each other.
+```
+
+```{r}
+# correlation
+attach(data)
+library(corrplot)
+corrplot(cor(data),method = 'number')
+```
+
+```{r}
+# group correlations #
+corr1 <- cor(skulls1)
+corr2 <- cor(skulls2)
+corr3 <- cor(skulls3)
+corr4 <- cor(skulls4)
+corr5 <- cor(skulls5)
+
+# group covariances #
+s1 <- cov(skulls1)
+s2 <- cov(skulls2)
+s3 <- cov(skulls3)
+s4 <- cov(skulls4)
+s5 <- cov(skulls5)
+```
+
+
+```{r}
+# Covariance Matrices
+s1
+s2
+s3
+s4
+s5
+```
+
+```{r}
+# Correlation matrices
+corr1
+corr2
+corr3
+corr4
+corr5
+```
+
+# Now we will be checking for the assumptions of MANOVA:
+```{r}
+# 1. Assumption of Homogeneity of Covariance Matrices
+
+# Box's M test for equality of covariance matrices.
+library(biotools)
+boxM(data, data.full$epoch)
+# Fail to reject null hypothesis. Conclude we have equal covariance matrices
+```
+-> We fail to reject the null hypothesis of homogeneity of covariance matrices.
+
+
+```{r}
+# 2. (i)Assumption of normality
+# Checking for the mormality of each of the variables individually (univariate normality)
+par(mfrow =c(2,2))
+hist(data$mb)
+hist(data$bh)
+hist(data$bl)
+hist(data$nh)
+
+shapiro.test(data$mb)
+shapiro.test(data$bh)                    
+shapiro.test(data$bl)
+shapiro.test(data$nh)
+# p-values > 0,05
+
+# Set up a 2x2 grid for subplots
+par(mfrow = c(2, 2))
+qqnorm(data$mb, main="mb")
+qqline(data$mb)
+
+qqnorm(data$bh, main="bh")
+qqline(data$bh)
+
+qqnorm(data$bl, main ="bl")
+qqline(data$bl)
+
+qqnorm(data$nh, main = "nh")
+qqline(data$nh)
+```
+Approximately normal.
+-> We fail to reject the null hypothesis that observations come from a normal distribution.
+
+```{r}
+# (ii) Checking for normality assumption: (multivariate normality)
+
+# assessment of normality #
+library(nortest)
+nor.test <- matrix(ncol=1,nrow=ncol(data))
+for ( i in 1:ncol(data)){
+  nor.test[i] <- ad.test(data[,i])$p.value        #Anderson-Darling test
+}
+nor.test
+
+# Normality test for multivariate variables #
+library(mvnormtest)
+
+#H0: Normal
+#H1: Not normal
+mshapiro.test(t(data))  # p-value > 0.05. Fail to reject H0. -> Normal
+```
+
+-> The data follows multivariate normal distribution.
+
+```{r}
+# scatterplots #
+# option 1 #
+library(lattice)
+splom(data.full[,2:5], groups=data.full[,1],pch=c(1,2,3,4,5), col=c(1,2,3,4,5), key=list(title="Five Time Periods",columns=5,points=list(pch=c(1,2,3,4,5),col=c(1,2,3,4,5)),text=list(c("4000 B.C.","3300 B.C.","1850 B.C.", "200 B.C", "150 A.D"))))
+
+# option 2 #
+library(car)
+scatterplotMatrix(~mb+bh+bl+nh|epoch, data=data.full, col=c(1,2,3,4,5), pch=c(1,2,3,4,5),main="Five Time Periods")
+
+```
+Approximately normal
+
+```{r}
+# Assumption of no multi-collinearity
+
+cor(data)      # None of the variables are highly correlated with each other
+
+
+library(mctest)
+mlr1 = lm(mb ~ ., data = data)
+mlr2 = lm(bh ~ ., data = data)
+mlr3 = lm(bl ~ ., data = data)
+mlr4 = lm(nh ~ ., data = data)
+
+# VIF values:
+imcdiag(mlr1)   # Individual Multicollinearity Diagnostics
+imcdiag(mlr2)
+imcdiag(mlr3)
+imcdiag(mlr4)
+```
+-> We observe a low VIF value. Hence, there exists no multicollinearity.
+
+```{r}
+#Outliers 
+
+# Multivariate Outlier Detection #
+library(mvoutlier)
+aq.plot(data, delta=qchisq(0.975, df=ncol(data)), quan=1/2, alpha=0.05)
+```
+Outliers based on 97.5% quantile: observations #4, 34, 78, 131, 149
+
+
+```{r}
+# Outlier detection using Mahalanobis distance:
+
+# Specify the mean and covariance matrix
+mean_vec <- colMeans(data)
+cov_matrix <- cov(data)
+
+# Calculate Mahalanobis distance
+D2 = mahalanobis_dist <- mahalanobis(data, center = mean_vec, cov = cov_matrix)
+print(D2)
+# Plot
+plot(density(D2, bw = 0.5),
+     main="Squared Mahalanobis Distances") ; rug(D2)
+
+# QQ plot
+qqplot(qchisq(ppoints(100), df = 4), D2,
+       main = expression("Q-Q plot of Mahalanobis" * ~D^2 *
+                         " vs. quantiles of" * ~ chi[4]^2))
+abline(0, 1, col = 'gray')
+
+# Outliers:
+# Identify observations with D2 greater than 9.7
+outliers <- which(D2 > 9.7)
+outliers
+
+# Based on the Mahalanobis distance, observations 4, 29  34  78 123 131 146 147 149 are outliers.
+```
+
+
+```{r}
+# Box Plots
+attach(data.full)
+
+# Reorder the levels of the Group variable
+data.full$epoch <- factor(data.full$epoch, levels = c("c4000BC", "c3300BC", "c1850BC", "c200BC","cAD150"))
+
+par(mfrow = c(2, 2))
+boxplot(data.full$mb ~ data.full$epoch, main = "Maximum Breadth of Skull", xlab = "Time Period")
+boxplot(nh ~ epoch, main = "Nasal Height of Skull",xlab = "Time Period")
+boxplot(bl ~ epoch, main = "Basialveolar Length of Skull", xlab = "Time Period")
+boxplot(bh ~ epoch, main = "Basibregmatic Height of Skull", xlab = "Time Period")
+```
+From the Box plots, it is evident that the different dimensions of the skulls differ over the different time periods.
+
+
+```{r}
+# MANOVA #
+fit.lm <- lm(cbind(mb, bh, bl, nh)~epoch , data = data.full)
+fit.manova <- Manova(fit.lm)
+summary(fit.manova)
+```
+# p-value < 0.05. (Statistically significant). Group means differ significantly. Skull dimensions change over the time periods.
+
+```{r}
+
+manova1 = manova(cbind(mb, bh, bl, nh)~epoch , data = data.full)
+#summary(manova1)
+
+summary.aov(manova1)  #for each of the response variable
+```
+-> For the variables mb, bh, bl the p-value is less than 0.05. Hence, we reject the null hypothesis that the means of the groups does not differ significantly over the time periods.
+-> For the variable nh, the p-value is high, hence we fail to reject to the null hypothesis that the mean nasal height does not differ significantly over the time periods.
+
+###############################################################################################
+# k-means clustering
+```{r}
+# Elbow method
+wss <- numeric(10)
+for (i in 1:10) {
+  kmeans_model <- kmeans(scaled_data, centers = i)
+  wss[i] <- kmeans_model$tot.withinss
+}
+plot(1:10, wss, type = "b", xlab = "Number of Clusters (k)", ylab = "Within-cluster Sum of Squares")
+
+```
+Optimum number of clusters is 5. 
+
+```{r}
+# Loading package 
+library(ClusterR) 
+library(cluster) 
+
+# scaling the data
+scaled_data <- scale(data)
+
+# Fitting K-Means clustering Model  
+set.seed(240) # Setting seed 
+kmeans.re <- kmeans(scaled_data, centers = 5) 
+kmeans.re 
+
+# Cluster identification for each observation 
+kmeans.re$cluster 
+
+# Confusion Matrix 
+cm <- table(data.full$epoch, kmeans.re$cluster) 
+cm
+
+# Silhouette score:
+silhouette_plot <- silhouette(kmeans.re$cluster, dist(scaled_data))
+plot(silhouette_plot, main = "Silhouette Plot for K-Means Clustering")
+
+# Example scatter plot for the first two variables
+plot(scaled_data[, 1], scaled_data[, 2], col = kmeans.re$cluster , pch = 16, main = "K-Means Clustering Results")
+points(kmeans.re$centers[, 1], kmeans.re$centers[, 2], col = 1:5, pch = 8, cex = 2)  # Adds cluster centers
+
+
+```
+```{r}
+# Cluster plot
+clusplot(data[,c("mb","bh","bl","nh")],
+          kmeans.re$cluster,
+         lines = 0,
+         shade = TRUE, 
+         color = TRUE,
+         labels = 1,
+         plotchar = TRUE, 
+         span = TRUE, 
+         main = paste("Clusters"))
+         
+```
+
+
+
